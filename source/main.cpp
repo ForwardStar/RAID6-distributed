@@ -48,7 +48,7 @@ int main() {
     printf("Enter the degree 'n' of the Galois field (n < 32): ");
     scanf("%d", &galois_degree);
     chunk_size = galois_degree;
-    L.log(INFO, "chunk_size = p.");
+    L.log(INFO, "chunk_size = n.");
     L.log(INFO, "Finding a monic irreducible polynomial (x = 2) of degree n.");
     int modulo = find_a_prime((1 << galois_degree));
     L.log(INFO, decompose(modulo));

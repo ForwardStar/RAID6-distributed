@@ -31,7 +31,7 @@ A running example:
 ```
 For a Galois field GF(2^n), a maximum number of 2^n storage disks is allowed.
 Enter the degree 'n' of the Galois field (n < 32): 8
-[INFO] [Mon Nov 20 23:49:33 2023] chunk_size = p.
+[INFO] [Mon Nov 20 23:49:33 2023] chunk_size = n.
 [INFO] [Mon Nov 20 23:49:33 2023] Finding a monic irreducible polynomial (x = 2) of degree n.
 [INFO] [Mon Nov 20 23:49:33 2023] The modulo irreducible polynomial is x ^ 8 + x ^ 2 + x + 1.
 Enter the number of storage disks (1 - 256). Note that two extra disks would be used for checksum: 10
