@@ -1,0 +1,4 @@
+.vscode
+filesystem
+*.o
+main
