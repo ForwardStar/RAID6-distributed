@@ -1,4 +1,4 @@
-OBJS=raid6.o main.o logger.o
+OBJS=raid6.o main.o logger.o galois.o
 CC=g++
 CFLAGS=-c -std=c++17 -O3
 

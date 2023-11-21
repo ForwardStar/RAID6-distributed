@@ -1,9 +1,12 @@
 #include "raid6.h"
+#include "galois.h"
 #include <cmath>
 #include <iostream>
 
+GaloisNumber Modulo;
+
 int find_a_prime(int x) {
-    for (int i = x + 2; i < (x << 1); i++) {
+    for (int i = x; i < (x << 1); i++) {
         bool is_prime = true;
         for (int j = 2; j <= int(sqrt(i)); j++) {
             if (i % j == 0) {
@@ -51,6 +54,10 @@ int main() {
     L.log(INFO, "chunk_size = n.");
     L.log(INFO, "Finding a monic irreducible polynomial (x = 2) of degree n.");
     int modulo = find_a_prime((1 << galois_degree));
+    Modulo = GaloisNumber(galois_degree + 1, modulo);
+    for (int i = 0; i < Modulo.bit_vector.size(); i++) {
+        printf("%d", Modulo.bit_vector[i]);
+    }
     L.log(INFO, decompose(modulo));
     int num_of_disks;
     printf("Enter the number of storage disks (1 - %d). Note that two extra disks would be used for checksum: ", (1 << galois_degree));
@@ -61,7 +68,7 @@ int main() {
     double storage_size = (double)num_trunks * chunk_size * num_of_disks / 1024 / 1024;
     std::string msg = "The total storage of this file system is ";
     L.log(INFO, msg + std::to_string(storage_size) + "MB.");
-    RAID6FileSystem* fs = new RAID6FileSystem(num_of_disks, modulo, chunk_size, num_trunks);
+    RAID6FileSystem* fs = new RAID6FileSystem(num_of_disks, chunk_size, num_trunks);
     while (1) {
         fs->check_and_fix();
         fs->list_all_files();

@@ -1,56 +1,57 @@
 #include "raid6.h"
 
-void RAID6FileSystem::write_disk(std::string path, std::vector<uint64_t> &checksum_q) {
+extern GaloisNumber Modulo;
+
+void RAID6FileSystem::write_disk(std::string path, std::vector<GaloisNumber> &checksum_q) {
     namespace fs = std::filesystem;
     fs::create_directories(path);
     for (int j = 0; j < m; j++) {
         std::ofstream f(path + "/chunk" + std::to_string(j));
-        for (int i = chunk_size - 1; i >= 0; i--) {
-            if (checksum_q[j] & (1ull << i)) {
-                f << "1";
-            }
-            else {
-                f << "0";
-            }
+        for (int i = 0; i < checksum_q[j].bit_vector.size(); i++) {
+            f << checksum_q[j].bit_vector[i];
         }
     }
 }
 
-void RAID6FileSystem::compute_checksum(std::vector<uint64_t> &checksum_p, std::vector<uint64_t> &checksum_q) {
-    uint64_t g = 1;
-    for (int i = 0; i < n; i++) {
+void RAID6FileSystem::compute_checksum(std::vector<GaloisNumber> &checksum_p, std::vector<GaloisNumber> &checksum_q) {
+    GaloisNumber g = GaloisNumber(Modulo.bit_vector.size() - 1, 2);
+    for (int i = n - 1; i >= 0; i--) {
         if (!std::filesystem::is_directory("./filesystem/disk" + std::to_string(i))) {
-            g <<= 1;
-            g %= p;
+            for (int j = 0; j < m; j++) {
+                if (checksum_q.size() <= j) {
+                    checksum_q.push_back(GaloisNumber(Modulo.bit_vector.size() - 1, 0));
+                }
+                else {
+                    checksum_q[j] = checksum_q[j] * g;
+                }
+            }
             continue;
         }
         for (int j = 0; j < m; j++) {
-            uint64_t contents = 0;
+            std::vector<int> bit_vector;
+            bit_vector.assign(Modulo.bit_vector.size() - 1, 0);
             std::ifstream f;
             f.open("./filesystem/disk" + std::to_string(i) + "/chunk" + std::to_string(j));
             if (f) {
-                int k = chunk_size - 1;
+                int k = 0;
                 char c;
                 while (f >> c) {
-                    contents ^= ((c - '0') << k);
-                    k--;
+                    bit_vector[k++] = c - '0';
                 }
             }
             if (checksum_p.size() <= j) {
-                checksum_p.push_back(contents);
+                checksum_p.push_back(GaloisNumber(bit_vector));
             }
             else {
-                checksum_p[j] ^= contents;
+                checksum_p[j] = checksum_p[j] + GaloisNumber(bit_vector);
             }
             if (checksum_q.size() <= j) {
-                checksum_q.push_back(contents * g % p);
+                checksum_q.push_back(GaloisNumber(bit_vector));
             }
             else {
-                checksum_q[j] ^= (contents * g % p);
+                checksum_q[j] = checksum_q[j] * g + GaloisNumber(bit_vector);
             }
         }
-        g <<= 1;
-        g %= p;
     }
 }
 
@@ -99,49 +100,47 @@ void RAID6FileSystem::check_and_fix() {
         return;
     }
     L.log(INFO, "No more than 2 disks are corrupted. I am trying to fix it...");
-    std::vector<uint64_t> checksum_p;
-    std::vector<uint64_t> checksum_q;
+    std::vector<GaloisNumber> checksum_p;
+    std::vector<GaloisNumber> checksum_q;
     compute_checksum(checksum_p, checksum_q);
-    std::vector<uint64_t> real_checksum_p;
-    std::vector<uint64_t> real_checksum_q;
+    std::vector<GaloisNumber> real_checksum_p;
+    std::vector<GaloisNumber> real_checksum_q;
     if (!checksum1_corrupt) {
         for (int j = 0; j < m; j++) {
-            uint64_t contents = 0;
+            std::vector<int> bit_vector;
+            bit_vector.assign(Modulo.bit_vector.size() - 1, 0);
             std::ifstream f;
-            f.open("./filesystem/disk_checksum1");
+            f.open("./filesystem/disk_checksum1/chunk" + std::to_string(j));
             if (f) {
-                int k = 63;
+                int k = 0;
                 char c;
                 while (f >> c) {
-                    contents ^= ((c - '0') << k);
-                    k--;
+                    bit_vector[k++] = c - '0';
                 }
             }
-            real_checksum_p.push_back(contents);
+            real_checksum_p.push_back(GaloisNumber(bit_vector));
         }
     }
     if (!checksum2_corrupt) {
         for (int j = 0; j < m; j++) {
-            uint64_t contents = 0;
+            std::vector<int> bit_vector;
+            bit_vector.assign(Modulo.bit_vector.size() - 1, 0);
             std::ifstream f;
-            f.open("./filesystem/disk_checksum2");
+            f.open("./filesystem/disk_checksum2/chunk" + std::to_string(j));
             if (f) {
-                int k = 63;
+                int k = 0;
                 char c;
                 while (f >> c) {
-                    contents ^= ((c - '0') << k);
-                    k--;
+                    bit_vector[k++] = c - '0';
                 }
             }
-            real_checksum_q.push_back(contents);
+            real_checksum_q.push_back(GaloisNumber(bit_vector));
         }
     }
     if (corrupt_num == 1) {
         if (!checksum1_corrupt && !checksum2_corrupt) {
             for (int j = 0; j < m; j++) {
-                for (int i = chunk_size - 1; i >= 0; i--) {
-                    checksum_p[j] ^= real_checksum_p[j];
-                }
+                checksum_p[j] = checksum_p[j] + real_checksum_p[j];
             }
             int u = *lost_disks.begin();
             write_disk("./filesystem/disk" + std::to_string(u), checksum_p);
@@ -159,67 +158,58 @@ void RAID6FileSystem::check_and_fix() {
             namespace fs = std::filesystem;
             fs::create_directories("./filesystem/disk" + std::to_string(u));
             fs::create_directories("./filesystem/disk_checksum2");
-            uint64_t g = 1;
+            GaloisNumber g = GaloisNumber(Modulo.bit_vector.size() - 1, 1);
+            GaloisNumber g_power = GaloisNumber(Modulo.bit_vector.size() - 1, 2);
             for (int i = 0; i < u; i++) {
-                g <<= 1;
-                g %= p;
+                g = g * g_power;
             }
             for (int j = 0; j < m; j++) {
-                std::ofstream f("./filesystem/disk" + std::to_string(u) + "/chunk" + std::to_string(j));
-                for (int i = chunk_size - 1; i >= 0; i--) {
-                    if ((checksum_p[j] ^ real_checksum_p[j]) & (1ull << i)) {
-                        f << "1";
-                    }
-                    else {
-                        f << "0";
-                    }
-                }
-                checksum_q[j] ^= ((checksum_p[j] ^ real_checksum_p[j]) * g % p);
+                std::ofstream f();
+                checksum_p[j] = checksum_p[j] + real_checksum_p[j];
+                checksum_q[j] = (checksum_q[j] + checksum_p[j]) * g;
             }
-            for (int j = 0; j < m; j++) {
-                std::ofstream f("./filesystem/disk_checksum2/chunk" + std::to_string(j));
-                for (int i = chunk_size - 1; i >= 0; i--) {
-                    if (checksum_q[j] & (1ull << i)) {
-                        f << "1";
-                    }
-                    else {
-                        f << "0";
-                    }
-                }
-            }
+            write_disk("./filesystem/disk" + std::to_string(u), checksum_p);
+            write_disk("./filesystem/disk_checksum2", checksum_q);
         }
         else if (checksum1_corrupt && !checksum2_corrupt) {
-
+            int u = *lost_disks.begin();
+            namespace fs = std::filesystem;
+            fs::create_directories("./filesystem/disk" + std::to_string(u));
+            fs::create_directories("./filesystem/disk_checksum2");
+            GaloisNumber g = GaloisNumber(Modulo.bit_vector.size() - 1, 1);
+            GaloisNumber g_power = GaloisNumber(Modulo.bit_vector.size() - 1, 2);
+            for (int i = 0; i < (1 << Modulo.bit_vector.size() - 1) - u - 1; i++) {
+                g = g * g_power;
+                for (int i = 0; i < g.bit_vector.size(); i++) {
+                    printf("%d", g.bit_vector[i]);
+                }
+                printf("\n");
+            }
+            for (int j = 0; j < m; j++) {
+                checksum_q[j] = (checksum_q[j] + real_checksum_q[j]) * g;
+                checksum_p[j] = checksum_p[j] + checksum_q[j];
+            }
+            write_disk("./filesystem/disk" + std::to_string(u), checksum_q);
+            write_disk("./filesystem/disk_checksum1", checksum_p);
         }
         else if (!checksum1_corrupt && !checksum2_corrupt) {
-
+            int u = -1, v = -1;
+            for (auto w : lost_disks) {
+                if (u == -1) {
+                    u = w;
+                }
+                else {
+                    v = w;
+                }
+            }
+            if (u > v) {
+                std::swap(u, v);
+            }
+            // To implement
         }
         else {
-            namespace fs = std::filesystem;
-            fs::create_directories("./filesystem/disk_checksum1");
-            for (int j = 0; j < m; j++) {
-                std::ofstream f("./filesystem/disk_checksum1/chunk" + std::to_string(j));
-                for (int i = chunk_size - 1; i >= 0; i--) {
-                    if (checksum_p[j] & (1ull << i)) {
-                        f << "1";
-                    }
-                    else {
-                        f << "0";
-                    }
-                }
-            }
-            fs::create_directories("./filesystem/disk_checksum2");
-            for (int j = 0; j < m; j++) {
-                std::ofstream f("./filesystem/disk_checksum2/chunk" + std::to_string(j));
-                for (int i = chunk_size - 1; i >= 0; i--) {
-                    if (checksum_q[j] & (1ull << i)) {
-                        f << "1";
-                    }
-                    else {
-                        f << "0";
-                    }
-                }
-            }
+            write_disk("./filesystem/disk_checksum1", checksum_p);
+            write_disk("./filesystem/disk_checksum2", checksum_q);
         }
     }
 }
@@ -244,7 +234,7 @@ void RAID6FileSystem::insert(std::string filename, int length, std::string conte
                 std::ofstream f("./filesystem/disk" + std::to_string(disk_idx) + "/chunk" + std::to_string(chunk_idx));
                 f << chunk_content;
             }
-            std::vector<uint64_t> checksum_p, checksum_q;
+            std::vector<GaloisNumber> checksum_p, checksum_q;
             compute_checksum(checksum_p, checksum_q);
             write_disk("./filesystem/disk_checksum1", checksum_p);
             write_disk("./filesystem/disk_checksum2", checksum_q);
@@ -257,9 +247,11 @@ void RAID6FileSystem::insert(std::string filename, int length, std::string conte
             else {
                 pieces.insert(std::make_pair(l + length / chunk_size + 1, r));
             }
-            break;
+            return;
         }
     }
+    Logger L;
+    L.log(ERROR, "Create file failed for insufficient storage space!");
 }
 
 void RAID6FileSystem::del(std::string filename) {
@@ -282,7 +274,7 @@ void RAID6FileSystem::del(std::string filename) {
         std::string path = "./filesystem/disk" + std::to_string(disk_idx) + "/chunk" + std::to_string(chunk_idx);
         std::remove(path.c_str());
     }
-    std::vector<uint64_t> checksum_p, checksum_q;
+    std::vector<GaloisNumber> checksum_p, checksum_q;
     compute_checksum(checksum_p, checksum_q);
     write_disk("./filesystem/disk_checksum1", checksum_p);
     write_disk("./filesystem/disk_checksum2", checksum_q);
@@ -322,10 +314,9 @@ void RAID6FileSystem::list_all_files() {
     L.log(INFO, msg);
 }
 
-RAID6FileSystem::RAID6FileSystem(int num_of_disks, int modulo, int c_size, int num_trunks) {
+RAID6FileSystem::RAID6FileSystem(int num_of_disks, int c_size, int num_trunks) {
     n = num_of_disks;
     m = num_trunks;
-    p = modulo;
     chunk_size = c_size;
     Logger L;
     L.log(INFO, "Initializing RAID6 distributed file system...");
