@@ -2,6 +2,28 @@
 
 extern GaloisNumber Modulo;
 
+bool GaloisNumber::operator == (const GaloisNumber &next) {
+    for (int i = 0; i < bit_vector.size(); i++) {
+        if (bit_vector[i] != next.bit_vector[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+GaloisNumber GaloisNumber::operator ^ (int x) {
+    GaloisNumber t = GaloisNumber(bit_vector.size(), 1);
+    GaloisNumber a = GaloisNumber(bit_vector);
+    while (x) {
+        if (x & 1) {
+            t = t * a;
+        }
+        a = a * a;
+        x >>= 1;
+    }
+    return t;
+}
+
 GaloisNumber GaloisNumber::operator * (const GaloisNumber &next) {
     std::vector<int> new_vector;
     new_vector.assign(bit_vector.size() << 1, 0);

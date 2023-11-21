@@ -5,6 +5,8 @@
 
 class GaloisNumber {
     public:
+        bool operator == (const GaloisNumber &next);
+        GaloisNumber operator ^ (int x);
         GaloisNumber operator * (const GaloisNumber &next);
         GaloisNumber operator + (const GaloisNumber &next);
 

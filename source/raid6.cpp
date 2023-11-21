@@ -1,6 +1,6 @@
 #include "raid6.h"
 
-extern GaloisNumber Modulo;
+extern GaloisNumber Modulo, Generator;
 
 void RAID6FileSystem::write_disk(std::string path, std::vector<GaloisNumber> &checksum_q) {
     namespace fs = std::filesystem;
@@ -158,13 +158,8 @@ void RAID6FileSystem::check_and_fix() {
             namespace fs = std::filesystem;
             fs::create_directories("./filesystem/disk" + std::to_string(u));
             fs::create_directories("./filesystem/disk_checksum2");
-            GaloisNumber g = GaloisNumber(Modulo.bit_vector.size() - 1, 1);
-            GaloisNumber g_power = GaloisNumber(Modulo.bit_vector.size() - 1, 2);
-            for (int i = 0; i < u; i++) {
-                g = g * g_power;
-            }
+            GaloisNumber g = Generator ^ u;
             for (int j = 0; j < m; j++) {
-                std::ofstream f();
                 checksum_p[j] = checksum_p[j] + real_checksum_p[j];
                 checksum_q[j] = (checksum_q[j] + checksum_p[j]) * g;
             }
@@ -176,15 +171,7 @@ void RAID6FileSystem::check_and_fix() {
             namespace fs = std::filesystem;
             fs::create_directories("./filesystem/disk" + std::to_string(u));
             fs::create_directories("./filesystem/disk_checksum2");
-            GaloisNumber g = GaloisNumber(Modulo.bit_vector.size() - 1, 1);
-            GaloisNumber g_power = GaloisNumber(Modulo.bit_vector.size() - 1, 2);
-            for (int i = 0; i < (1 << Modulo.bit_vector.size() - 1) - u - 1; i++) {
-                g = g * g_power;
-                for (int i = 0; i < g.bit_vector.size(); i++) {
-                    printf("%d", g.bit_vector[i]);
-                }
-                printf("\n");
-            }
+            GaloisNumber g = Generator ^ ((1 << Modulo.bit_vector.size() - 1) - u - 1);
             for (int j = 0; j < m; j++) {
                 checksum_q[j] = (checksum_q[j] + real_checksum_q[j]) * g;
                 checksum_p[j] = checksum_p[j] + checksum_q[j];
@@ -205,7 +192,19 @@ void RAID6FileSystem::check_and_fix() {
             if (u > v) {
                 std::swap(u, v);
             }
-            // To implement
+            GaloisNumber g1 = Generator ^ (v - u);
+            GaloisNumber g2 = Generator ^ ((1 << Modulo.bit_vector.size() - 1) - u - 1);
+            GaloisNumber A = g1 * ((g1 + GaloisNumber(Modulo.bit_vector.size() - 1, 1)) ^ ((1 << Modulo.bit_vector.size() - 1) - 2));
+            GaloisNumber B = g2 * ((g1 + GaloisNumber(Modulo.bit_vector.size() - 1, 1)) ^ ((1 << Modulo.bit_vector.size() - 1) - 2));
+            std::vector<GaloisNumber> D1, D2;
+            for (int j = 0; j < m; j++) {
+                checksum_p[j] = checksum_p[j] + real_checksum_p[j];
+                checksum_q[j] = checksum_q[j] + real_checksum_q[j];
+                D1.push_back(A * checksum_p[j] + B * checksum_q[j]);
+                D2.push_back(checksum_p[j] + D1[D1.size() - 1]);
+            }
+            write_disk("./filesystem/disk" + std::to_string(u), D1);
+            write_disk("./filesystem/disk" + std::to_string(v), D2);
         }
         else {
             write_disk("./filesystem/disk_checksum1", checksum_p);
@@ -301,6 +300,7 @@ std::string RAID6FileSystem::retrieve(std::string filename) {
         f >> sub_content;
         content += sub_content;
     }
+    content = content.substr(0, file_length[filename]);
     return content;
 }
 
