@@ -250,7 +250,7 @@ void RAID6FileSystem::insert(std::string filename, int length, std::string conte
         }
     }
     Logger L;
-    L.log(ERROR, "Create file failed for insufficient storage space!");
+    L.log(ERROR, "Create file failed for insufficient storage space! Try deleting some files or defragmentation.");
 }
 
 void RAID6FileSystem::del(std::string filename) {
@@ -302,6 +302,26 @@ std::string RAID6FileSystem::retrieve(std::string filename) {
     }
     content = content.substr(0, file_length[filename]);
     return content;
+}
+
+void RAID6FileSystem::defragmentation() {
+    Logger L;
+    L.log(INFO, "Performing defragmentation...");
+    std::unordered_map<std::string, std::string> files;
+    std::vector<std::string> filenames;
+    for (auto u : file_map) {
+        filenames.push_back(u.first);
+    }
+    for (auto u : filenames) {
+        files[u] = retrieve(u);
+        del(u);
+    }
+    pieces.clear();
+    pieces.insert(std::make_pair(0, n * m));
+    for (auto u : files) {
+        insert(u.first, int(u.second.size()), u.second);
+    }
+    L.log(INFO, "Successfully finish defragmentation!");
 }
 
 void RAID6FileSystem::list_all_files() {

@@ -27,6 +27,7 @@ class RAID6FileSystem {
         void insert(std::string filename, int length, std::string content);
         void del(std::string filename);
         std::string retrieve(std::string filename);
+        void defragmentation();
 
         void list_all_files();
 

@@ -126,7 +126,8 @@ int main() {
         printf("2. Delete a file;\n");
         printf("3. View a file;\n");
         printf("4. Open and modify a file;\n");
-        printf("5. Exit.\n");
+        printf("5. Compress the disks (defragmentation);\n");
+        printf("6. Exit.\n");
         printf("=====================\n");
         printf("Perform an operation: ");
         int op;
@@ -312,6 +313,9 @@ int main() {
                 }
                 break;
             case 5:
+                fs->defragmentation();
+                break;
+            case 6:
                 return 0;
         }
     }
