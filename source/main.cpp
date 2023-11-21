@@ -1,9 +1,17 @@
 #include "raid6.h"
 #include "galois.h"
 #include <cmath>
+#include <cstring>
 #include <iostream>
 
 GaloisNumber Modulo, Generator;
+
+unsigned long long currentTime() {
+    std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+    std::chrono::system_clock::duration duration = now.time_since_epoch();
+    unsigned long long microSecondsOfDuration = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+    return microSecondsOfDuration;
+}
 
 bool is_irreducible(GaloisNumber x) {
     for (int i = 2; i < (1 << Modulo.bit_vector.size() - 1); i++) {
@@ -96,7 +104,12 @@ GaloisNumber find_a_generator(int galois_degree) {
     return GaloisNumber();
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    bool debug = false;
+    if (argc > 1 && std::strcmp(argv[1], "Debug") == 0) {
+        debug = true;
+        std::cout << "Debug mode = ON" << std::endl;
+    }
     Logger L;
     int galois_degree, chunk_size;
     printf("For a Galois field GF(2^n), a maximum number of 2^n storage disks is allowed, and the chunk size would be n bits.\n");
@@ -119,7 +132,12 @@ int main() {
     L.log(INFO, msg + std::to_string(storage_size) + "KB.");
     RAID6FileSystem* fs = new RAID6FileSystem(num_of_disks, chunk_size, num_trunks);
     while (1) {
+        unsigned long long start_time = currentTime();
         fs->check_and_fix();
+        unsigned long long end_time = currentTime();
+        if (debug) {
+            L.log(DEBUG, "Check and fix finished in " + std::to_string((end_time - start_time) / 1000) + "ms.");
+        }
         fs->list_all_files();
         printf("=====================\n");
         printf("1. Create a file;\n");
@@ -159,20 +177,33 @@ int main() {
                         break;
                     }
                 }
+                start_time = currentTime();
                 if (!invalid_file) {
                     fs->insert(filename, n, content);
+                }
+                end_time = currentTime();
+                if (debug) {
+                    L.log(DEBUG, "Create file finished in " + std::to_string((end_time - start_time) / 1000) + "ms.");
                 }
                 break;
             case 2:
                 printf("Enter the file name: ");
                 std::cin >> filename;
+                start_time = currentTime();
                 fs->del(filename);
+                end_time = currentTime();
+                if (debug) {
+                    L.log(DEBUG, "Delete file finished in " + std::to_string((end_time - start_time) / 1000) + "ms.");
+                }
                 break;
             case 3:
                 printf("Enter the file name: ");
                 std::cin >> filename;
+                start_time = currentTime();
                 printf("File length: %d, file content:\n", fs->file_length[filename]);
                 std::cout << fs->retrieve(filename) << std::endl;
+                end_time = currentTime();
+                L.log(DEBUG, "Display file finished in " + std::to_string((end_time - start_time) / 1000) + "ms.");
                 break;
             case 4:
                 printf("Enter the file name: ");
@@ -313,7 +344,12 @@ int main() {
                 }
                 break;
             case 5:
+                start_time = currentTime();
                 fs->defragmentation();
+                end_time = currentTime();
+                if (debug) {
+                    L.log(DEBUG, "Display file finished in " + std::to_string((end_time - start_time) / 1000) + "ms.");
+                }
                 break;
             case 6:
                 return 0;
