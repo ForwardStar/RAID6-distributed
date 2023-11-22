@@ -18,7 +18,8 @@ Supported operations:
 1. Create a file;
 2. Delete a file;
 3. View a file;
-4. Modify a file (Feature under-developed).
+4. Open and modify a file;
+5. Compress the disks (defragmentation).
 ```
 
 You can verify RAID6 by:
@@ -26,12 +27,13 @@ You can verify RAID6 by:
 1. Delete any one disk in "./filesystem";
 2. Delete any two disks in "./filesystem".
 ```
+These operations should be done manually and externally (not built-in operations).
 
 A running example:
 ```
-For a Galois field GF(2^n), a maximum number of 2^n storage disks is allowed, and the chunk size would be n bits.
-Enter the degree 'n' of the Galois field (n < 32): 8
-[INFO] [Tue Nov 21 15:59:51 2023] Finding a monic irreducible polynomial (x = 2) of degree n.
+For a Galois field GF(2^k), a maximum number of 2^k storage disks is allowed, and the chunk size would be k bits.
+Enter the degree 'k' of the Galois field (k < 32): 8
+[INFO] [Tue Nov 21 15:59:51 2023] Finding a monic irreducible polynomial of degree k.
 [INFO] [Tue Nov 21 15:59:51 2023] The modulo irreducible polynomial is x ^ 8 + x ^ 4 + x ^ 3 + x + 1.
 [INFO] [Tue Nov 21 15:59:51 2023] The generator is x + 1.
 Enter the number of storage disks (1 - 256). Note that two extra disks would be used for checksum: 10

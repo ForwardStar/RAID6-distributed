@@ -112,11 +112,11 @@ int main(int argc, char* argv[]) {
     }
     Logger L;
     int galois_degree, chunk_size;
-    printf("For a Galois field GF(2^n), a maximum number of 2^n storage disks is allowed, and the chunk size would be n bits.\n");
-    printf("Enter the degree 'n' of the Galois field (n < 32): ");
+    printf("For a Galois field GF(2^k), a maximum number of 2^k storage disks is allowed, and the chunk size would be k bits.\n");
+    printf("Enter the degree 'k' of the Galois field (k < 32): ");
     scanf("%d", &galois_degree);
     chunk_size = galois_degree;
-    L.log(INFO, "Finding a monic irreducible polynomial (x = 2) of degree n.");
+    L.log(INFO, "Finding a monic irreducible polynomial degree k.");
     Modulo = find_an_irreducible(galois_degree, (1 << galois_degree));
     Generator = find_a_generator(galois_degree);
     L.log(INFO, decompose("The modulo irreducible polynomial is ", Modulo));
